@@ -6,6 +6,7 @@ from src.logger import logging
 
 from catboost import CatBoostRegressor
 from xgboost import XGBRegressor
+
 from sklearn.ensemble import(
     AdaBoostRegressor,
     GradientBoostingRegressor,
@@ -38,53 +39,76 @@ class ModelTrainer:
                 "Linear Regression": LinearRegression(),
                 "K-Neighbours Regressor": KNeighborsRegressor(),
                 "XGB Regressor": XGBRegressor(),
-                "CatBoosting Regressor": CatBoostRegressor(verbose=False),
+
+                # ===== ONLY CATBOOST PART CHANGED =====
+                "CatBoosting Regressor": CatBoostRegressor(
+                    verbose=False,
+                    random_seed=42,
+                    thread_count=-1,
+                    loss_function='RMSE',
+                    eval_metric='R2',
+                    early_stopping_rounds=50
+                ),
+                # ======================================
+
                 "AdaBoost Regressor": AdaBoostRegressor(),
             }
+
             params={
                 "Decision Tree": {
                     'criterion':['squared_error', 'friedman_mse', 'absolute_error', 'poisson'],
-                    # 'splitter':['best','random'],
-                    # 'max_features':['sqrt','log2'],
                 },
+
                 "Random Forest":{
-                    # 'criterion':['squared_error', 'friedman_mse', 'absolute_error', 'poisson'],
-                 
-                    # 'max_features':['sqrt','log2',None],
                     'n_estimators': [8,16,32,64,128,256]
                 },
+
                 "Gradient Boosting":{
-                    # 'loss':['squared_error', 'huber', 'absolute_error', 'quantile'],
                     'learning_rate':[.1,.01,.05,.001],
                     'subsample':[0.6,0.7,0.75,0.8,0.85,0.9],
-                    # 'criterion':['squared_error', 'friedman_mse'],
-                    # 'max_features':['auto','sqrt','log2'],
                     'n_estimators': [8,16,32,64,128,256]
                 },
+
                 "Linear Regression":{},
+
                 "XGBRegressor":{
                     'learning_rate':[.1,.01,.05,.001],
                     'n_estimators': [8,16,32,64,128,256]
                 },
+
+                # ===== ONLY CATBOOST PARAMS CHANGED =====
                 "CatBoosting Regressor":{
                     'depth': [6,8,10],
-                    'learning_rate': [0.01, 0.05, 0.1],
-                    'iterations': [30, 50, 100]
+                    'learning_rate': [0.01, 0.03, 0.05],
+                    'iterations': [300, 700, 1200],
+                    'l2_leaf_reg': [1, 3, 5]
                 },
+                # =========================================
+
                 "AdaBoost Regressor":{
                     'learning_rate':[.1,.01,0.5,.001],
-                    # 'loss':['linear','square','exponential'],
                     'n_estimators': [8,16,32,64,128,256]
                 }
-                
             }
-            model_report: dict = evaluate_models(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, models=models, param=params)
+
+            model_report: dict = evaluate_models(
+                X_train=X_train,
+                y_train=y_train,
+                X_test=X_test,
+                y_test=y_test,
+                models=models,
+                param=params
+            )
+
             best_model_name = max(model_report, key=model_report.get)
             best_model_score = model_report[best_model_name]
             best_model = models[best_model_name]
+
             logging.info(f"Best model found: {best_model_name} with R2 score: {best_model_score}")
+
             if best_model_score < 0.6:
                 raise CustomException("No best model found with R2 score greater than 0.6", sys)
+
             logging.info("Saving the best model")
             
             save_object(
